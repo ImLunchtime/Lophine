@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: ImLunchtime <knoxmedia@yeah.net>
+Date: Sun, 11 Oct 2026 16:56:14 +0800
+Subject: [PATCH] Add secure ore vein generation for V1
+
+
+diff --git a/net/minecraft/world/level/levelgen/RandomState.java b/net/minecraft/world/level/levelgen/RandomState.java
+index 208d4b93ee47083bd9069aec710c6db27044203c..bf688aecb3994de0424634c39bc47df1aacd7ded 100644
+--- a/net/minecraft/world/level/levelgen/RandomState.java
++++ b/net/minecraft/world/level/levelgen/RandomState.java
+@@ -35,9 +35,13 @@ public final class RandomState {
+     private RandomState(final NoiseGeneratorSettings settings, final HolderGetter<NormalNoise.NoiseParameters> noises, final long seed) {
+         // this.random = settings.getRandomSource().newInstance(seed).forkPositional(); // Luminol - Add secure seed V2 with Blake3
+         // Luminol start - Add secure seed V2 with Blake3
+-        final long[] secureWorldSeed = (me.earthme.luminol.config.modules.function.SecureSeedConfig.enabled && me.earthme.luminol.config.modules.function.SecureSeedConfig.version == 2)
++        // Lophine start - Secure ore veins for V1
++        // Derive the salted 1024-bit seed whenever secure seed is enabled, not only for version 2.
++        // Every other consumer below keeps its V2-only guard, so V1 terrain/aquifer/climate/surface stay untouched.
++        final long[] secureWorldSeed = (me.earthme.luminol.config.modules.function.SecureSeedConfig.enabled)
+                 ? su.plo.matter.HashingV2.expandLevelSeedTo1024Bits(seed)
+                 : null;
++        // Lophine end - Secure ore veins for V1
+ 
+         long terrainSeed = (me.earthme.luminol.config.modules.function.SecureSeedConfig.enabled && me.earthme.luminol.config.modules.function.SecureSeedConfig.version == 2)
+                 ? su.plo.matter.HashingV2.getTerrainSeed(secureWorldSeed, su.plo.matter.HashingV2.TerrainType.BASE_TERRAIN)
+@@ -45,9 +49,13 @@ public final class RandomState {
+         long aquiferSeed = (me.earthme.luminol.config.modules.function.SecureSeedConfig.enabled && me.earthme.luminol.config.modules.function.SecureSeedConfig.version == 2)
+                 ? su.plo.matter.HashingV2.getTerrainSeed(secureWorldSeed, su.plo.matter.HashingV2.TerrainType.AQUIFER)
+                 : seed;
+-        long oreSeed = (me.earthme.luminol.config.modules.function.SecureSeedConfig.enabled && me.earthme.luminol.config.modules.function.SecureSeedConfig.version == 2)
++        // Lophine start - Secure ore veins for V1
++        // oreRandom is only consumed by OreVeinifier (the noise stage giant copper/iron veins), so keying it
++        // with the salted seed hides those veins in V1 too, without changing terrain or structure generation.
++        long oreSeed = (me.earthme.luminol.config.modules.function.SecureSeedConfig.enabled)
+                 ? su.plo.matter.HashingV2.getTerrainSeed(secureWorldSeed, su.plo.matter.HashingV2.TerrainType.ORE)
+                 : seed;
++        // Lophine end - Secure ore veins for V1
+         // Luminol end
+         this.random = settings.getRandomSource().newInstance(terrainSeed).forkPositional(); // Luminol - Add secure seed V2 with Blake3
+         this.noises = noises;
